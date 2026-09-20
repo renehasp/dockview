@@ -5,6 +5,8 @@ Docker container manager with Docker Hub and GitHub Container Registry catalogs,
 ## Features
 
 - List, start, stop, and remove containers
+- **Open** on running containers with a published port — opens the app in a new tab
+- Version badge next to the DockView name; click it for release notes
 - List and delete images
 - Search and deploy popular images from **Docker Hub** and **GHCR**
 - **Pull Latest** on a running container:

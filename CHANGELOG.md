@@ -5,6 +5,18 @@ All notable changes to **DockView** are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-09-20
+
+### Added
+
+- Version badge next to the DockView name; click it to open the release notes log
+
+## [1.1.0] — 2026-09-20
+
+### Added
+
+- **Open** button next to Running on containers with a published host port; opens the app in a new tab on that port
+
 ## [1.0.0] — 2026-09-20
 
 ### Added
