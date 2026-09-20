@@ -1,0 +1,25 @@
+name: Restore app.py
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore complete app.py
+        run: |
+          set -euo pipefail
+          git checkout d90cccb -- app.py
+          git apply patches/v1.2.0-app.py.patch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.py
+          git commit -m "Restore full DockView app.py for v1.2.0"
+          git push

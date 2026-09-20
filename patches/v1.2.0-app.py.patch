@@ -1,0 +1,150 @@
+diff --git a/app.py b/app.py
+index a90028b..5aa7c83 100644
+--- a/app.py
++++ b/app.py
+@@ -20,6 +20,7 @@ HUB_API = "https://hub.docker.com/v2"
+ GITHUB_API = "https://api.github.com"
+ REGISTRY_TIMEOUT = 10
+ JOBS_DIR = os.environ.get("DOCKVIEW_JOBS_DIR", "/tmp/dockview-jobs")
++APP_DIR = os.path.dirname(os.path.abspath(__file__))
+ PULL_TIMEOUT = int(os.environ.get("DOCKVIEW_PULL_TIMEOUT", "1200"))
+ COMPOSE_LABEL_WORKDIR = "com.docker.compose.project.working_dir"
+ COMPOSE_LABEL_CONFIG = "com.docker.compose.project.config_files"
+@@ -749,6 +750,75 @@ def format_size(size_bytes):
+     return f"{size:.1f} TB"
+ 
+ 
++WEB_CONTAINER_PORTS = {
++    80, 443, 3000, 4000, 4173, 5000, 5173, 8000, 8080, 8081,
++    8096, 8123, 8443, 8888, 9000, 9080, 1997,
++}
++NON_WEB_CONTAINER_PORTS = {
++    22, 25, 53, 110, 143, 465, 587, 993, 995,
++    3306, 5432, 5672, 6379, 11211, 27017,
++}
++
++
++def parse_container_port_number(container_port):
++    text = str(container_port or "").split("/", 1)[0]
++    try:
++        return int(text)
++    except (TypeError, ValueError):
++        return None
++
++
++def published_bindings(c):
++    result = []
++    if not c.ports:
++        return result
++    for container_port, bindings in c.ports.items():
++        if not bindings:
++            continue
++        cport = parse_container_port_number(container_port)
++        for binding in bindings:
++            host_port = binding.get("HostPort")
++            if not host_port:
++                continue
++            try:
++                hport = int(host_port)
++            except (TypeError, ValueError):
++                continue
++            result.append({
++                "host_ip": binding.get("HostIp") or "0.0.0.0",
++                "host_port": hport,
++                "container_port": cport,
++            })
++    return result
++
++
++def pick_open_binding(bindings):
++    if not bindings:
++        return None
++    unique = []
++    seen = set()
++    for binding in bindings:
++        port = binding["host_port"]
++        if port in seen:
++            continue
++        seen.add(port)
++        unique.append(binding)
++
++    def score(binding):
++        cport = binding.get("container_port")
++        hport = binding["host_port"]
++        web = (cport in WEB_CONTAINER_PORTS) or (hport in WEB_CONTAINER_PORTS)
++        skip = (cport in NON_WEB_CONTAINER_PORTS) or (hport in NON_WEB_CONTAINER_PORTS)
++        if web:
++            return (0, hport)
++        if skip:
++            return (2, hport)
++        return (1, hport)
++
++    unique.sort(key=score)
++    return unique[0]
++
++
+ def container_to_dict(c):
+     ports = []
+     if c.ports:
+@@ -760,6 +830,12 @@ def container_to_dict(c):
+                 ports.append(container_port)
+ 
+     source = detect_update_source(c)
++    open_binding = pick_open_binding(published_bindings(c)) if c.status == "running" else None
++    open_port = open_binding["host_port"] if open_binding else None
++    open_tls = False
++    if open_binding:
++        cport = open_binding.get("container_port")
++        open_tls = cport in (443, 8443) or open_binding["host_port"] in (443, 8443)
+     return {
+         "id": c.short_id,
+         "name": c.name.lstrip("/"),
+@@ -769,6 +845,8 @@ def container_to_dict(c):
+         "running": c.status == "running",
+         "created": c.attrs.get("Created", ""),
+         "ports": ports,
++        "open_port": open_port,
++        "open_tls": open_tls,
+         "can_pull_latest": source["can_pull_latest"],
+         "update_source": source["update_source"],
+         "update_source_label": source.get("update_source_label"),
+@@ -1464,9 +1542,38 @@ def run_pull_latest_job(job_id, container_id):
+             finish_job(job, "error", message, updated=False)
+ 
+ 
++def read_version():
++    path = os.path.join(APP_DIR, "VERSION")
++    try:
++        with open(path, encoding="utf-8") as handle:
++            version = handle.read().strip()
++        if version:
++            return version.lstrip("v")
++    except OSError:
++        pass
++    return "0.0.0"
++
++
++def read_changelog():
++    path = os.path.join(APP_DIR, "CHANGELOG.md")
++    try:
++        with open(path, encoding="utf-8") as handle:
++            return handle.read()
++    except OSError:
++        return "No release notes found."
++
++
+ @app.route("/")
+ def index():
+-    return render_template("index.html")
++    return render_template("index.html", version=read_version())
++
++
++@app.route("/api/version")
++def version():
++    return jsonify({
++        "version": read_version(),
++        "changelog": read_changelog(),
++    })
+ 
+ 
+ @app.route("/api/stats")
