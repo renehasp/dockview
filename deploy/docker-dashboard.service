@@ -1,0 +1,17 @@
+[Unit]
+Description=DockView Docker Dashboard
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dockview
+Environment=PORT=80
+ExecStart=/opt/dockview/venv/bin/gunicorn --bind 0.0.0.0:80 --workers 2 --timeout 120 app:app
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

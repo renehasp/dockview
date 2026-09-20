@@ -1,0 +1,13 @@
+services:
+  dockview:
+    build: .
+    image: dockview:local
+    container_name: dockview
+    restart: unless-stopped
+    ports:
+      - "${DOCKVIEW_PORT:-80}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      PORT: "80"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
