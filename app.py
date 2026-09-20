@@ -29,18 +29,3 @@ COMPOSE_LABEL_PROJECT = "com.docker.compose.project"
 
 REGISTRY_DOCKER_HUB = "docker-hub"
 REGISTRY_GHCR = "ghcr"
-
-REGISTRIES = {
-    REGISTRY_DOCKER_HUB: {
-        "id": REGISTRY_DOCKER_HUB,
-        "name": "Docker Hub",
-        "short_name": "Docker Hub",
-        "search_placeholder": "Search Docker Hub repos...",
-    },
-    REGISTRY_GHCR: {
-        "id": REGISTRY_GHCR,
-        "name": "GitHub Container Registry",
-        "short_name": "GHCR",
-        "search_placeholder": "Search GHCR packages...",
-    },
-}
