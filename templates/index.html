@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DockView — Docker Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🐳</div>
+        <div>
+          <h1>DockView</h1>
+          <p>Docker Container Manager</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="refresh-indicator" id="lastRefresh">—</span>
+        <button class="btn-ghost" onclick="refreshAll(true)" id="refreshBtn">↻ Refresh</button>
+        <button class="btn-ghost" onclick="openCatalogPanel()">⭐ Popular Repos</button>
+        <button class="btn-primary" onclick="openModal()">+ New Container</button>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Containers</div>
+        <div class="stat-value" id="statTotal">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Running</div>
+        <div class="stat-value running" id="statRunning">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Stopped</div>
+        <div class="stat-value stopped" id="statStopped">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Images</div>
+        <div class="stat-value" id="statImages">—</div>
+      </div>
+    </div>
+
+    <div class="panels-stack">
+      <div class="panel" id="catalogPanel">
+        <div class="panel-header">
+          <h2 id="catalogPanelTitle">Container Registries</h2>
+          <div class="panel-header-actions">
+            <div class="registry-switch" id="registrySwitch">
+              <button type="button" class="active" data-registry="docker-hub" onclick="switchRegistry('docker-hub')">Docker Hub</button>
+              <button type="button" data-registry="ghcr" onclick="switchRegistry('ghcr')">GHCR</button>
+            </div>
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="repoSearchInput" placeholder="Search Docker Hub repos..." oninput="searchRepos()">
+            </div>
+          </div>
+        </div>
+        <div class="catalog-section-label" id="catalogSectionLabel">Top 10 Popular Repos — Docker Hub</div>
+        <div class="catalog-list" id="catalogGrid">
+          <div class="empty-state"><span class="spinner"></span> Loading popular repos...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Containers</h2>
+          <div class="panel-header-actions">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="searchInput" placeholder="Search containers..." oninput="filterContainers()">
+            </div>
+            <button class="btn-ghost" onclick="refreshContainers()" id="refreshContainersBtn">↻ Refresh</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Image</th>
+              <th>Ports</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="containerTable">
+            <tr class="loading-row"><td colspan="5"><span class="spinner"></span>Loading containers...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Images</h2>
+          <div class="panel-header-actions">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="imageSearchInput" placeholder="Search images..." oninput="filterImages()">
+            </div>
+            <button class="btn-ghost" onclick="refreshImages()" id="refreshImagesBtn">↻ Refresh</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>ID</th>
+              <th>Size</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="imageTable">
+            <tr class="loading-row"><td colspan="4"><span class="spinner"></span>Loading images...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deploy Popular Repo Modal -->
+  <div class="modal-overlay" id="deployModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="deployModalTitle">Deploy Repository</h3>
+        <button class="btn-close" onclick="closeDeployModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Image</label>
+          <input type="text" id="deployImage" readonly>
+        </div>
+        <div class="form-group">
+          <label for="deployHostPort">Host Port *</label>
+          <input type="number" id="deployHostPort" min="1" max="65535" placeholder="8080">
+          <div class="form-hint">Traffic on this port will be forwarded to the container</div>
+        </div>
+        <div class="port-preview" id="deployPortPreview"></div>
+        <div class="form-group">
+          <label for="deployName">Container Name</label>
+          <input type="text" id="deployName" placeholder="dockview-nginx">
+        </div>
+        <div class="form-hint" id="deployEnvHint" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeDeployModal()">Cancel</button>
+        <button class="btn-primary" id="deployBtn" onclick="deployCatalogRepo()">Pull & Deploy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Container Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Create New Container</h3>
+        <button class="btn-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="imageInput">Image *</label>
+          <input type="text" id="imageInput" list="imageList" placeholder="e.g. nginx:latest">
+          <datalist id="imageList"></datalist>
+          <div class="form-hint">Select an existing image or type a new one to pull</div>
+        </div>
+        <div class="form-group">
+          <label for="nameInput">Container Name</label>
+          <input type="text" id="nameInput" placeholder="my-container (optional)">
+        </div>
+        <div class="form-group">
+          <label for="portsInput">Port Mappings</label>
+          <input type="text" id="portsInput" placeholder="8080:80, 443:443">
+          <div class="form-hint">Format: host:container — separate multiple with commas</div>
+        </div>
+        <div class="form-group">
+          <label for="envInput">Environment Variables</label>
+          <textarea id="envInput" placeholder="KEY=value&#10;FOO=bar"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="cmdInput">Command</label>
+          <input type="text" id="cmdInput" placeholder="Optional override command">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="createBtn" onclick="createContainer()">Create & Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pull Latest progress -->
+  <div class="modal-overlay" id="pullModal">
+    <div class="modal wide">
+      <div class="modal-header">
+        <h3 id="pullModalTitle">Pull Latest</h3>
+        <button class="btn-close" id="pullModalCloseX" onclick="closePullModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="pull-status running" id="pullStatus"><span class="spinner"></span>Starting…</div>
+        <pre class="pull-log" id="pullLog"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="pullCloseBtn" onclick="closePullModal()" disabled>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toasts"></div>
+
+  <script src="/static/app.js"></script>
+
+</body>
+</html>
