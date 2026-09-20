@@ -323,10 +323,13 @@ function renderContainers(list) {
         ${sourceBadge(c)}
       </td>
       <td>
-        <span class="badge ${c.running ? 'running' : 'stopped'}">
-          <span class="badge-dot"></span>
-          ${c.running ? 'Running' : 'Stopped'}
-        </span>
+        <div class="status-cell">
+          <span class="badge ${c.running ? 'running' : 'stopped'}">
+            <span class="badge-dot"></span>
+            ${c.running ? 'Running' : 'Stopped'}
+          </span>
+          ${openButton(c)}
+        </div>
       </td>
       <td>${esc(c.image)}</td>
       <td class="ports">${c.ports.length ? c.ports.map(esc).join('<br>') : '—'}</td>
@@ -349,6 +352,22 @@ function esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+
+function openButton(c) {
+  if (!c.running || !c.open_port) return '';
+  return `<button class="btn-open" type="button" data-port="${esc(String(c.open_port))}" data-tls="${c.open_tls ? 'true' : 'false'}" title="Open this app on port ${esc(String(c.open_port))}" onclick="openContainerApp(this)">Open</button>`;
+}
+
+function openContainerApp(btn) {
+  const port = parseInt(btn.dataset.port, 10);
+  if (!port) return;
+  const tls = btn.dataset.tls === 'true';
+  const host = window.location.hostname || 'localhost';
+  const protocol = tls ? 'https:' : 'http:';
+  const omitPort = (protocol === 'https:' && port === 443) || (protocol === 'http:' && port === 80);
+  const url = omitPort ? `${protocol}//${host}/` : `${protocol}//${host}:${port}/`;
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function filterContainers() {
@@ -611,6 +630,92 @@ async function refreshImages() {
   finally { btn.disabled = false; }
 }
 
+let changelogMarkdown = '';
+let changelogLoaded = false;
+
+function formatChangelog(md) {
+  const lines = String(md || '').replace(/\r\n/g, '\n').split('\n');
+  let html = '';
+  let inList = false;
+  const closeList = () => {
+    if (inList) {
+      html += '</ul>';
+      inList = false;
+    }
+  };
+  const inline = (text) => esc(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (line.startsWith('## ')) {
+      closeList();
+      html += `<h2>${inline(line.slice(3))}</h2>`;
+    } else if (line.startsWith('### ')) {
+      closeList();
+      html += `<h3>${inline(line.slice(4))}</h3>`;
+    } else if (line.startsWith('# ')) {
+      closeList();
+      html += `<h2>${inline(line.slice(2))}</h2>`;
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (!inList) {
+        html += '<ul>';
+        inList = true;
+      }
+      html += `<li>${inline(line.slice(2))}</li>`;
+    } else if (!line.trim()) {
+      closeList();
+    } else {
+      closeList();
+      html += `<p>${inline(line)}</p>`;
+    }
+  }
+  closeList();
+  return html;
+}
+
+async function loadVersion() {
+  try {
+    const data = await api('/api/version');
+    const btn = document.getElementById('versionBtn');
+    if (btn && data.version) {
+      btn.textContent = `v${String(data.version).replace(/^v/i, '')}`;
+    }
+    if (data.changelog) {
+      changelogMarkdown = data.changelog;
+      changelogLoaded = true;
+    }
+  } catch (e) { /* keep the version baked into the page */ }
+}
+
+async function openChangelogModal() {
+  const overlay = document.getElementById('changelogModal');
+  const body = document.getElementById('changelogBody');
+  overlay.classList.add('open');
+  if (!changelogLoaded) {
+    body.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading release notes...</div>`;
+    try {
+      const data = await api('/api/version');
+      changelogMarkdown = data.changelog || '';
+      changelogLoaded = true;
+      const btn = document.getElementById('versionBtn');
+      if (btn && data.version) {
+        btn.textContent = `v${String(data.version).replace(/^v/i, '')}`;
+      }
+    } catch (e) {
+      body.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>${esc(e.message)}</p></div>`;
+      return;
+    }
+  }
+  body.innerHTML = formatChangelog(changelogMarkdown) || '<p>No release notes found.</p>';
+}
+
+function closeChangelogModal() {
+  document.getElementById('changelogModal').classList.remove('open');
+}
+
 async function refreshAll(fullPage = false) {
   if (fullPage) {
     location.reload();
@@ -648,6 +753,11 @@ document.getElementById('pullModal').addEventListener('click', e => {
 
 document.getElementById('deployHostPort').addEventListener('input', updateDeployPortPreview);
 
+document.getElementById('changelogModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeChangelogModal();
+});
+
+loadVersion();
 refreshAll();
 refreshTimer = setInterval(() => {
   if (!pullModalOpen) refreshAll();
