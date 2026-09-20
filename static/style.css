@@ -59,10 +59,35 @@ header {
   font-size: 20px;
 }
 
+.logo-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .logo h1 {
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.version-badge {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.version-badge:hover {
+  background: rgba(59, 130, 246, 0.22);
+  color: #fff;
 }
 
 .logo p {
@@ -260,6 +285,24 @@ tbody td {
 .badge.running .badge-dot {
   animation: pulse 2s infinite;
 }
+
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-open {
+  background: rgba(34, 211, 238, 0.12);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.btn-open:hover { background: rgba(34, 211, 238, 0.22); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -780,6 +823,58 @@ button:disabled {
 .modal.wide {
   max-width: 680px;
 }
+
+.changelog {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.changelog h2 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 22px 0 8px;
+}
+
+.changelog h2:first-child { margin-top: 0; }
+
+.changelog h3 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 14px 0 6px;
+}
+
+.changelog p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.changelog ul {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.changelog li {
+  font-size: 0.875rem;
+  margin: 6px 0;
+  line-height: 1.45;
+}
+
+.changelog code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.changelog a { color: var(--accent); }
 
 .pull-status {
   display: flex;
